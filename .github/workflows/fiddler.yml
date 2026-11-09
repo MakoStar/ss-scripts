@@ -1,0 +1,52 @@
+name: fiddler
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  LUA_RAW: https://raw.githubusercontent.com/MakoStar/ss-lua/main/Lua/GameCore/Network
+  PROTO_REL: https://api.github.com/repos/MakoStar/ss-proto/releases/latest
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: fetch lua
+        run: |
+          mkdir -p build
+          curl -fsSL "$LUA_RAW/NetMsgId.lua" -o build/NetMsgId.lua
+          curl -fsSL "$LUA_RAW/proto.pb" -o build/proto.pb
+
+      - name: fetch pb2proto
+        run: |
+          url=$(curl -fsSL "$PROTO_REL" | jq -r '.assets[] | select(.name | test("linux-x64.tar.gz$")) | .browser_download_url' | head -n 1)
+          test -n "$url"
+          curl -fsSL "$url" -o build/pb2proto.tar.gz
+          tar -xzf build/pb2proto.tar.gz -C build
+          chmod +x build/pb2proto
+
+      - name: build proto
+        run: ./build/pb2proto -i build/proto.pb -o build/proto.proto
+
+      - name: gen map
+        run: python3 fiddler/gen_map.py --lua build/NetMsgId.lua --cs fiddler/msg_decoder.cs --write
+
+      - name: gen schema
+        run: python3 fiddler/gen_schema.py --proto build/proto.proto --cs fiddler/msg_decoder.cs --write
+
+      - name: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fiddler
+          if git diff --cached --quiet; then
+            echo "no change"
+            exit 0
+          fi
+          git commit -m "update msgId and schema"
+          git push

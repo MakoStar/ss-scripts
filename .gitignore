@@ -1,0 +1,11 @@
+# fiddler
+fiddler/NetMsgId.lua
+fiddler/proto.pb
+fiddler/proto.proto
+
+# build
+build/
+
+# python
+__pycache__/
+*.pyc
