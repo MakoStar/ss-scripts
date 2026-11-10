@@ -1,6 +1,6 @@
-# ss-mitmproxy
+# mitmproxy
 
-StellaSora 的 mitmweb 解码脚本：自动解密游戏报文，Body 面板直接显示明文 JSON，Comment 显示 msgId nonce key3。
+ss 的 mitmweb 解码脚本：自动解密游戏报文，Body 面板直接显示明文 JSON，Comment 显示 msgId nonce key3。
 
 ## 启动
 
