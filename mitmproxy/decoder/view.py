@@ -150,4 +150,6 @@ class SSJsonView(object):
         return self._render(results[0])
 
 
-contentviews.add(SSJsonView())
+def register():
+    # called from the addon load hook so the ui picks up the view
+    contentviews.add(SSJsonView())

@@ -3,10 +3,12 @@
 import logging
 
 from mitmproxy import ctx
+from mitmproxy import contentviews
 
 from . import wire
 from . import pb
 from . import autoproxy
+from .view import SSJsonView
 
 # auto install ca cert and set the windows system proxy at startup
 AUTO_SETUP = True
@@ -21,7 +23,13 @@ class SSDecoder(object):
         self._proxy_backup = None
 
     def load(self, loader):
-        # auto setup once mitmproxy options are ready
+        # register the contentview and auto setup once options are ready
+        try:
+            contentviews.add(SSJsonView())
+            logging.info("SS contentviews: %s" % list(contentviews.registry))
+        except Exception as e:
+            logging.warning("SS contentview registration failed: %s" % e)
+
         try:
             import re
             flt = " | ".join("~d " + re.escape(d) for d in wire.CAPTURE_DOMAINS)
@@ -32,7 +40,7 @@ class SSDecoder(object):
         if not AUTO_SETUP:
             return
         try:
-            port = ctx.options.listen_port
+            port = ctx.options.listen_port or 8080
         except Exception:
             port = 8080
         self._proxy_backup = autoproxy.setup(port)
