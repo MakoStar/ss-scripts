@@ -37,11 +37,11 @@ jobs:
 
       - name: gen pb2
         run: |
-          uv run python -m grpc_tools.protoc -I build --python_out=mitmproxy/ss_decoder proto.proto
-          uv run python -m grpc_tools.protoc -I mitmproxy/proto --python_out=mitmproxy/ss_decoder mitmproxy/proto/PB.proto
+          uv run python -m grpc_tools.protoc -I build --python_out=mitmproxy/decoder proto.proto
+          uv run python -m grpc_tools.protoc -I mitmproxy/proto --python_out=mitmproxy/decoder mitmproxy/proto/PB.proto
 
       - name: gen msgid
-        run: uv run python mitmproxy/gen_msgid.py --lua build/NetMsgId.lua --out mitmproxy/ss_decoder/msgid.py
+        run: uv run python mitmproxy/gen_msgid.py --lua build/NetMsgId.lua --out mitmproxy/decoder/msgid.py
 
       - name: commit
         run: |

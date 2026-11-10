@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# generate ss_decoder/msgid.py from NetMsgId.lua
+# generate decoder/msgid.py from NetMsgId.lua
 # usage python gen_msgid.py [--lua path] [--out path]
 import argparse
 import os
@@ -37,7 +37,7 @@ def render(seen):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--lua", default=os.path.join(HERE, "NetMsgId.lua"))
-    ap.add_argument("--out", default=os.path.join(HERE, "ss_decoder", "msgid.py"))
+    ap.add_argument("--out", default=os.path.join(HERE, "decoder", "msgid.py"))
     a = ap.parse_args()
 
     seen = read_map(a.lua)
