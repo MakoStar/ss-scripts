@@ -32,6 +32,31 @@ KEY3_LIVE = ""
 # decrypt serverlist.html and noticelist.html
 STATIC_META = True
 
+# hosts to capture and show, extend the list as needed
+CAPTURE_DOMAINS = [
+    "sdk-api.yostar.cn",
+    "nova.yostar.cn",
+    "nova-static.yostar.cn",
+    "jp-sdk-api.yostarplat.com",
+    "nova.stellasora.jp",
+    "nova-static.stellasora.kr",
+    "nova-static.stellasora.global",
+    "nova.stargazer-games.com",
+    "nova-static.stargazer-games.com",
+    "launcher-pkg-ss-hk.stargazer-games.com",
+    "launcher-pkg-ss-kr.yo-star.com",
+    "launcher-pkg-ss-jp.yo-star.com",
+    "launcher-pkg-ss-en.yo-star.com",
+    "launcher-api.yostar.net",
+    "api-launcher-kr.yo-star.com",
+    "api-launcher-jp.yo-star.com",
+    "api-launcher-en.yo-star.com",
+    "api-launcher-tw.stargazer-games.com",
+    "game-launcher-ss-cn.yostar.net",
+    "na.jvav.net.cn",
+    "my-manifest-router.pages.dev",
+]
+
 GARBLE = {
     "CN": "QW*Wi7fKjLk!T82Qf2nEGZA%nSC!D9qV",
     "JP": "yX5Gt64PVvVH6$qwBXaPJC*LZKoK5mYh",

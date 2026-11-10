@@ -7,7 +7,6 @@ from mitmproxy import ctx
 from . import wire
 from . import pb
 from . import autoproxy
-from . import view  # noqa: F401  registers the SS JSON contentview
 
 # auto install ca cert and set the windows system proxy at startup
 AUTO_SETUP = True
@@ -23,6 +22,13 @@ class SSDecoder(object):
 
     def load(self, loader):
         # auto setup once mitmproxy options are ready
+        try:
+            import re
+            flt = " | ".join("~d " + re.escape(d) for d in wire.CAPTURE_DOMAINS)
+            ctx.options.view_filter = flt
+        except Exception as e:
+            logging.warning("SS view filter not applied: %s" % e)
+
         if not AUTO_SETUP:
             return
         try:
@@ -91,7 +97,7 @@ class SSDecoder(object):
         if js is None:
             text = "STATIC " + kind + "\nplain hex:\n" + body[:256].hex()
         else:
-            show = js[:6000] + ("…(%d chars)" % len(js) if len(js) > 6000 else "")
+            show = js[:20000] + ("…(%d chars)" % len(js) if len(js) > 20000 else "")
             text = "STATIC " + kind + "\n" + show
         self._put_section(flow, "STATIC", text)
         logging.info("SS static %s body %s" % (kind, js if js is None else js[:4000]))
@@ -321,10 +327,10 @@ class SSDecoder(object):
         if js is None:
             text = line + "\nbody not in proto table, hex:\n" + dec["body"][:256].hex()
         else:
-            show = js[:6000] + ("…(%d chars)" % len(js) if len(js) > 6000 else "")
+            show = js[:20000] + ("…(%d chars)" % len(js) if len(js) > 20000 else "")
             text = line + "\n" + show
         self._put_section(flow, tag, text)
         logging.info(line)
         logging.debug("SS %s %s" % (tag, dec["info"]))
         if js is not None:
-            logging.info("%s body %s" % (tag, js[:4000] + ("…(%d chars)" % len(js) if len(js) > 4000 else "")))
+            logging.info("%s body %s" % (tag, js[:8000] + ("…(%d chars)" % len(js) if len(js) > 8000 else "")))

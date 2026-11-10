@@ -65,9 +65,9 @@ def parse(msg_id, body):
 
 
 def to_json(msg):
-    # message instance to json text with Any and NextPackage expanded
+    # message instance to pretty json text with Any and NextPackage expanded
     d = MessageToDict(msg, preserving_proto_field_name=True)
-    return json.dumps(post(d, msg.DESCRIPTOR.name, 0), ensure_ascii=False)
+    return json.dumps(post(d, msg.DESCRIPTOR.name, 0), ensure_ascii=False, indent=2)
 
 
 def post(obj, owner, depth):
@@ -125,14 +125,14 @@ def post(obj, owner, depth):
 
 
 def raw_json(cls, raw):
-    # parse raw protobuf bytes of a known class and return json text
+    # parse raw protobuf bytes of a known class and return pretty json text
     m = cls()
     try:
         m.ParseFromString(bytes(raw))
     except Exception:
         return None
     d = MessageToDict(m, preserving_proto_field_name=True)
-    return json.dumps(post(d, cls.DESCRIPTOR.name, 0), ensure_ascii=False)
+    return json.dumps(post(d, cls.DESCRIPTOR.name, 0), ensure_ascii=False, indent=2)
 
 
 def body_json(msg_id, body):
