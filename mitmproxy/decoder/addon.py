@@ -89,11 +89,12 @@ class SSDecoder(object):
         cls = pb.resolve(kind)
         js = pb.raw_json(cls, body) if cls is not None else None
         if js is None:
-            logging.info("SS static %s plain hex %s" % (kind, body[:256].hex()))
-            return
-        show = js[:4000] + ("…(%d chars)" % len(js) if len(js) > 4000 else "")
-        self._mark(flow, "static %s %s" % (kind, show))
-        logging.info("SS static %s body %s" % (kind, show))
+            text = "STATIC " + kind + "\nplain hex:\n" + body[:256].hex()
+        else:
+            show = js[:6000] + ("…(%d chars)" % len(js) if len(js) > 6000 else "")
+            text = "STATIC " + kind + "\n" + show
+        self._put_section(flow, "STATIC", text)
+        logging.info("SS static %s body %s" % (kind, js if js is None else js[:4000]))
 
     def _is_game(self, flow):
         # game protocol session check
@@ -141,6 +142,69 @@ class SSDecoder(object):
             flow.marked = True
         except Exception:
             pass
+
+    def _put_section(self, flow, tag, text):
+        # replace one REQ or RESP section of the comment, keep the others
+        try:
+            prev = flow.comment or ""
+        except Exception:
+            prev = ""
+        if not text:
+            text = None
+
+        sections, cur_tag, cur_lines = [], None, []
+        for ln in prev.split("\n"):
+            head = None
+            for t in ("REQ", "RESP", "STATIC"):
+                if ln.startswith(t + " "):
+                    head = t
+                    break
+            if head is not None:
+                if cur_lines:
+                    sections.append((cur_tag, "\n".join(cur_lines)))
+                cur_tag, cur_lines = head, [ln]
+            else:
+                cur_lines.append(ln)
+        if cur_lines and (cur_tag is not None or any(s.strip() for s in cur_lines)):
+            sections.append((cur_tag, "\n".join(cur_lines)))
+
+        out, placed = [], False
+        for t, txt in sections:
+            if t == tag:
+                if text:
+                    out.append(text)
+                    placed = True
+            else:
+                out.append(txt)
+        if not placed and text:
+            out.append(text)
+        try:
+            flow.comment = "\n".join(out)
+            flow.marked = True
+        except Exception:
+            pass
+
+    def _ike_text(self, body, is_req):
+        # decoded fields of an ike packet
+        parts = []
+        if is_req:
+            r = wire.pb_find(body, 3)
+            if r and r[0] == 2:
+                parts.append("clientPub=" + r[1].hex())
+        else:
+            r = wire.pb_find(body, 1)
+            if r and r[0] == 2:
+                parts.append("token=" + r[1].decode("utf-8", "replace"))
+            r = wire.pb_find(body, 2)
+            if r and r[0] == 0:
+                parts.append("cipher=" + ("chacha" if int(r[1]) == 1 else "aes-gcm"))
+            r = wire.pb_find(body, 3)
+            if r and r[0] == 0:
+                parts.append("serverTs=%d" % int(r[1]))
+            r = wire.pb_find(body, 4)
+            if r and r[0] == 2:
+                parts.append("serverPub=" + r[1].hex())
+        return "\n".join(parts)
 
     def _mitm_step(self, flow, is_req, wire_body):
         # relay entry, rewrites ike and re-encrypts business packets
@@ -244,12 +308,23 @@ class SSDecoder(object):
         line = "%s msgId=%d (%s) nonce=%s key3=%s [%s]" % (
             "REQ" if is_req else "RESP", dec["msgId"], name,
             dec["nonce"].hex(), dec["key"].hex(), dec["keyName"])
+        tag = "REQ" if is_req else "RESP"
+
+        if dec["msgId"] in (1, 2):
+            # ike handshake, show the parsed handshake fields
+            text = line + "\n" + self._ike_text(dec["body"], dec["msgId"] == 1)
+            self._put_section(flow, tag, text)
+            logging.info(text)
+            return
+
         js = pb.body_json(dec["msgId"], dec["body"])
-        if js is not None:
-            self._mark(flow, line)
-            logging.info(line)
-            logging.info("%s body %s" % ("REQ" if is_req else "RESP",
-                                         js[:4000] + ("…(%d chars)" % len(js) if len(js) > 4000 else "")))
+        if js is None:
+            text = line + "\nbody not in proto table, hex:\n" + dec["body"][:256].hex()
         else:
-            self._mark(flow, line + "  body=" + dec["body"][:64].hex())
-            logging.info(line + "  body=" + dec["body"][:128].hex())
+            show = js[:6000] + ("…(%d chars)" % len(js) if len(js) > 6000 else "")
+            text = line + "\n" + show
+        self._put_section(flow, tag, text)
+        logging.info(line)
+        logging.debug("SS %s %s" % (tag, dec["info"]))
+        if js is not None:
+            logging.info("%s body %s" % (tag, js[:4000] + ("…(%d chars)" % len(js) if len(js) > 4000 else "")))
