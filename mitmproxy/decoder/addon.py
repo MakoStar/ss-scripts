@@ -7,6 +7,7 @@ from mitmproxy import ctx
 from . import wire
 from . import pb
 from . import autoproxy
+from . import view  # noqa: F401  registers the SS JSON contentview
 
 # auto install ca cert and set the windows system proxy at startup
 AUTO_SETUP = True
