@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package Pb;
+
+enum Platform {
+  All = 0;
+  Ios = 1;
+  Android = 2;
+  PC = 3;
+  Harmonyos = 4;
+}
+
+enum OP {
+  Eq = 0;
+  Lt = 1;
+  Gt = 2;
+  Le = 3;
+  Ge = 4;
+}
+
+enum Action {
+  Redirect = 0;
+  Download = 1;
+}
+
+message ServerAgent {
+  string name = 1;
+  string addr = 2;
+  int32 status = 3;
+  int64 zone = 4;
+}
+
+message Rule {
+  Platform platform = 1;
+  string channel = 2;
+  string version = 3;
+  OP op = 4;
+  Action action = 5;
+  string url = 6;
+  bool enable = 7;
+}
+
+message ServerListMeta {
+  int64 version = 1;
+  repeated ServerAgent agent = 2; 
+  int32 status = 3;
+  string message = 4;
+  string report_endpoint = 6;
+  repeated Rule rules = 7;
+}
+
+message NoticeItem {
+  uint64 id = 1;
+  string title = 2;
+  string content_url = 3;
+  repeated uint32 channel = 4;
+  string quest_id = 5;
+  int64 end_time = 6;
+  int64 sort = 7;
+}
+
+message NoticeType {
+  string name = 1;
+  repeated NoticeItem detail = 2;
+}
+
+message NoticeList {
+  repeated NoticeType list = 1;
+}

@@ -3,6 +3,9 @@ fiddler/NetMsgId.lua
 fiddler/proto.pb
 fiddler/proto.proto
 
+# mitmproxy
+mitmproxy/.venv
+
 # build
 build/
 

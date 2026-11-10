@@ -1,0 +1,56 @@
+name: mitmproxy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  LUA_RAW: https://raw.githubusercontent.com/MakoStar/ss-lua/main/Lua/GameCore/Network
+  PROTO_REL: https://api.github.com/repos/MakoStar/ss-proto/releases/latest
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+
+      - name: fetch lua
+        run: |
+          mkdir -p build
+          curl -fsSL "$LUA_RAW/NetMsgId.lua" -o build/NetMsgId.lua
+          curl -fsSL "$LUA_RAW/proto.pb" -o build/proto.pb
+
+      - name: fetch pb2proto
+        run: |
+          url=$(curl -fsSL "$PROTO_REL" | jq -r '.assets[] | select(.name | test("linux-x64.tar.gz$")) | .browser_download_url' | head -n 1)
+          test -n "$url"
+          curl -fsSL "$url" -o build/pb2proto.tar.gz
+          tar -xzf build/pb2proto.tar.gz -C build
+          chmod +x build/pb2proto
+
+      - name: build proto
+        run: ./build/pb2proto -i build/proto.pb -o build/proto.proto
+
+      - name: gen pb2
+        run: |
+          uv run python -m grpc_tools.protoc -I build --python_out=mitmproxy/ss_decoder proto.proto
+          uv run python -m grpc_tools.protoc -I mitmproxy/proto --python_out=mitmproxy/ss_decoder mitmproxy/proto/PB.proto
+
+      - name: gen msgid
+        run: uv run python mitmproxy/gen_msgid.py --lua build/NetMsgId.lua --out mitmproxy/ss_decoder/msgid.py
+
+      - name: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mitmproxy
+          if git diff --cached --quiet; then
+            echo "no change"
+            exit 0
+          fi
+          git commit -m "update pb2 and msgid tables"
+          git push
