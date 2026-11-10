@@ -2,12 +2,39 @@
 # mitmweb addon entry
 import logging
 
+from mitmproxy import ctx
+
 from . import wire
 from . import pb
+from . import autoproxy
+
+# auto install ca cert and set the windows system proxy at startup
+AUTO_SETUP = True
+
+# restore the previous system proxy at shutdown
+AUTO_RESTORE = True
 
 
 class SSDecoder(object):
     # hooks for mitmproxy, run mitmweb --scripts addon.py
+    def __init__(self):
+        self._proxy_backup = None
+
+    def load(self, loader):
+        # auto setup once mitmproxy options are ready
+        if not AUTO_SETUP:
+            return
+        try:
+            port = ctx.options.listen_port
+        except Exception:
+            port = 8080
+        self._proxy_backup = autoproxy.setup(port)
+
+    def done(self):
+        # restore the previous system proxy on shutdown
+        if AUTO_RESTORE:
+            autoproxy.restore(self._proxy_backup)
+
     def request(self, flow):
         try:
             self._handle(flow, True)
