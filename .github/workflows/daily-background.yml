@@ -1,0 +1,63 @@
+name: Daily launcher background record
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    env:
+      SSR_RELEASE: "v0.4.1"
+      SSR_DIR: /tmp/ssrf
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Download ss-resource-fetcher release
+        run: |
+          mkdir -p "$SSR_DIR"
+          URL="https://github.com/MakoStar/ss-resource-fetcher/releases/download/${SSR_RELEASE}/ResourceFetcher-${SSR_RELEASE}-linux-x64.tar.gz"
+          curl -sSL "$URL" -o "$SSR_DIR/rf.tar.gz"
+          tar -xzf "$SSR_DIR/rf.tar.gz" -C "$SSR_DIR"
+          chmod +x "$SSR_DIR/ResourceFetcher"
+          "$SSR_DIR/ResourceFetcher" --version
+
+      - name: Fetch client manifest ss_win.mani
+        working-directory: /tmp/ssrf
+        run: |
+          "$SSR_DIR/ResourceFetcher" client -r \
+            -s DEFAULT_REGION=CN \
+            -s DEFAULT_PLATFORM=win \
+            -s TASK.CLIENT.REGISTRY.FETCH_FILES='[ss_win.mani]' \
+            -s 'TASK.CLIENT.REGISTRY.RES_PATTERNS=[^ss_win\.mani$]'
+
+      - name: Fetch and update background record
+        env:
+          MANI_PATH: /tmp/ssrf/output/Metadata/CN/win/ss_win.mani
+        working-directory: launcher/backgound
+        run: node run-daily.mjs
+
+      - name: Commit and push if backgound.md changed
+        run: |
+          MD="launcher/backgound/backgound.md"
+          if [ -z "$(git status --porcelain "$MD")" ]; then
+            echo "no change, skip commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$MD"
+          git commit -m "chore(launcher): update launcher background record $(date +%Y-%m-%d)"
+          git push

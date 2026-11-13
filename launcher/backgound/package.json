@@ -1,0 +1,11 @@
+{
+  "name": "backgound",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "抓取并记录 StellaSora_CN 启动器背景图链接",
+  "scripts": {
+    "fetch": "node fetch-bg.mjs",
+    "daily": "node run-daily.mjs"
+  }
+}
