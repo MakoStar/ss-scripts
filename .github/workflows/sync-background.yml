@@ -46,15 +46,6 @@ jobs:
             -s TASK.CLIENT.REGISTRY.FETCH_FILES='[ss_win.mani]' \
             -s 'TASK.CLIENT.REGISTRY.RES_PATTERNS=[^ss_win\.mani$]'
 
-      - name: Fetch background and download image
-        working-directory: sync/launcher/background-image
-        env:
-          MANI_PATH: /tmp/ssrf/output/Metadata/CN/win/ss_win.mani
-          BG_WORK_DIR: /tmp/bg-work
-        run: |
-          mkdir -p "$BG_WORK_DIR"
-          node fetch-bg.js
-
       - name: Checkout target repository
         uses: actions/checkout@v6
         with:
@@ -62,6 +53,24 @@ jobs:
           path: repo
           token: ${{ secrets.GH_TOKEN }}
           fetch-depth: 1
+
+      - name: Restore background history
+        run: |
+          mkdir -p "$BG_WORK_DIR"
+          SRC="$GITHUB_WORKSPACE/repo/launcher/background/background.md"
+          if [ -f "$SRC" ]; then
+            cp "$SRC" "$BG_WORK_DIR/background.md"
+            echo "Restored background history from target repo"
+          else
+            echo "No existing background history, start fresh"
+          fi
+
+      - name: Fetch background and download image
+        working-directory: sync/launcher/background-image
+        env:
+          MANI_PATH: /tmp/ssrf/output/Metadata/CN/win/ss_win.mani
+          BG_WORK_DIR: /tmp/bg-work
+        run: node fetch-bg.js
 
       - name: Sync background and commit
         working-directory: repo
@@ -73,15 +82,15 @@ jobs:
           STATE="$BG_WORK_DIR/state.json"
           TAG=$(jq -r '.tag' "$STATE")
           IMAGE=$(jq -r '.image' "$STATE")
-          SRC_MD="$GITHUB_WORKSPACE/sync/launcher/background-image/background.md"
+          SRC_MD="$BG_WORK_DIR/background.md"
           SRC_IMAGE="$BG_WORK_DIR/image/$IMAGE"
 
           if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
             echo "No version tag in state"
             exit 1
           fi
-          if [ ! -f "$SRC_IMAGE" ]; then
-            echo "Image not found: $SRC_IMAGE"
+          if [ ! -f "$SRC_MD" ] || [ ! -f "$SRC_IMAGE" ]; then
+            echo "Background artifacts not found"
             exit 1
           fi
 

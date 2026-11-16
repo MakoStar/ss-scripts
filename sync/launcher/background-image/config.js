@@ -18,7 +18,7 @@ const CLIENT_VERSION = regionCfg.CLIENT_VERSION;
 const SALT = regionCfg.SALT;
 
 const WORK_DIR = process.env.BG_WORK_DIR || path.join(__dirname, "output");
-const MD_PATH = path.join(__dirname, "background.md");
+const MD_PATH = path.join(WORK_DIR, "background.md");
 const IMAGE_DIR = path.join(WORK_DIR, "image");
 
 export {
