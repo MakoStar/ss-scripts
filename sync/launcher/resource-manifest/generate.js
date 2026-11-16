@@ -39,12 +39,12 @@ async function getJson(url, endpoint) {
         },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
       })
-      if (!res.ok) throw new Error(`fetch failed ${res.status}: ${url}`)
+      if (!res.ok) throw new Error(`fetch failed ${res.status} for ${url}`)
       return await res.json()
     } catch (err) {
       lastErr = err
       if (attempt < MAX_RETRIES) {
-        console.warn(`[retry ${attempt}/${MAX_RETRIES}] ${url}: ${err.message}`)
+        console.warn(`[retry ${attempt}/${MAX_RETRIES}] ${err.message} (url=${url})`)
         await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
       }
     }
