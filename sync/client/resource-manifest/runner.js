@@ -5,7 +5,7 @@ const { CACHE_DIR } = require('./config')
 
 const RETRY = 2
 
-// 带重试地执行单个任务
+// run a single task with retries
 async function runTask(region, platform, opts) {
   let last = null
 
@@ -16,14 +16,14 @@ async function runTask(region, platform, opts) {
 
     if (result.ok && verified.ok) return last
     if (attempt <= RETRY) {
-      console.log(`  [${region}/${platform}] 第 ${attempt} 次未成功，重试中...`)
+      console.log(`  [${region}/${platform}] attempt ${attempt} failed, retrying...`)
     }
   }
 
   return last
 }
 
-// 按并发上限调度全部任务
+// schedule all tasks under a concurrency limit
 async function runAll(regions, platforms, opts) {
   const tasks = []
   for (const region of regions) {
@@ -39,11 +39,11 @@ async function runAll(regions, platforms, opts) {
     while (cursor < tasks.length) {
       const index = cursor++
       const task = tasks[index]
-      process.stdout.write(`-> 导出 ${task.region}/${task.platform} ... `)
+      process.stdout.write(`-> export ${task.region}/${task.platform} ... `)
       const result = await runTask(task.region, task.platform, opts)
       results[index] = result
       saveLog(result)
-      const status = result.ok && result.verified.ok ? '完成' : '失败'
+      const status = result.ok && result.verified.ok ? 'done' : 'failed'
       console.log(status)
     }
   }
@@ -55,7 +55,7 @@ async function runAll(regions, platforms, opts) {
   return results
 }
 
-// 将汇总结果写入缓存目录
+// write summary to the cache directory
 function saveSummary(results) {
   const dir = path.join(CACHE_DIR, 'reports')
   fs.mkdirSync(dir, { recursive: true })
