@@ -1,0 +1,111 @@
+name: Sync launcher salt
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  TARGET_REPO: MakoStar/ss-repo
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Install dependencies
+        working-directory: sync/launcher/authorization-salt
+        run: pnpm install --frozen-lockfile
+
+      - name: Extract launcher salt
+        working-directory: sync/launcher/authorization-salt
+        env:
+          SALT_OUT_DIR: /tmp/salt-work/output
+          SALT_DATA_DIR: /tmp/salt-work/data
+        run: node index.js
+
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.TARGET_REPO }}
+          path: repo
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 1
+
+      - name: Sync salt data per region
+        working-directory: repo
+        env:
+          SOURCE_DIR: /tmp/salt-work/output
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          SOURCE="$SOURCE_DIR"
+          TARGET="launcher/auth-salt"
+          SALT_FILE="$SOURCE/launcher_salt.json"
+
+          if [ ! -f "$SALT_FILE" ]; then
+            echo "salt file not found: $SALT_FILE"
+            exit 1
+          fi
+
+          mkdir -p "$TARGET"
+
+          git add "$TARGET/launcher_salt.json" 2>/dev/null || true
+          cp "$SALT_FILE" "$TARGET/launcher_salt.json"
+          git add "$TARGET/launcher_salt.json"
+          if ! git diff --cached --quiet -- "$TARGET/launcher_salt.json"; then
+            git commit -m "update: launcher_salt.json"
+          fi
+
+          for region in $(jq -r 'keys[]' "$SALT_FILE"); do
+            src="$SOURCE/$region"
+            dst="$TARGET/$region"
+
+            if [ ! -d "$src" ]; then
+              echo "[$region] source not found, skip"
+              continue
+            fi
+
+            mkdir -p "$dst"
+            cp "$src"/* "$dst"/
+
+            version=$(jq -r ".\"$region\".ver" "$SALT_FILE")
+
+            git add "$dst"
+            if git diff --cached --quiet -- "$dst"; then
+              echo "[$region] no change, skip"
+              continue
+            fi
+
+            region_lower="${region,,}"
+            msg="chore($region_lower): $version"
+            git commit -m "$msg"
+            echo "[$region] committed: $msg"
+          done
+
+          if [ -n "$(git log origin/main..HEAD --oneline)" ]; then
+            git push
+            echo "pushed to $TARGET_REPO"
+          else
+            echo "nothing to push"
+          fi
