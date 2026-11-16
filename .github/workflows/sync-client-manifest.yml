@@ -46,6 +46,13 @@ jobs:
           mkdir -p "$MANIFEST_WORK_DIR"
           node index.js --concurrency 2
 
+      - name: Generate resource urls
+        working-directory: sync/client/resource-url
+        env:
+          MANIFEST_DIR: /tmp/manifest-work/output/Manifest
+          RESOURCE_URL_OUT_DIR: /tmp/manifest-work/output/ResourceUrl
+        run: node generate.js
+
       - name: Checkout target repository
         uses: actions/checkout@v6
         with:
@@ -54,7 +61,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           fetch-depth: 1
 
-      - name: Sync manifests and commit per region
+      - name: Sync manifests and urls per region
         working-directory: repo
         env:
           WORK_DIR: /tmp/manifest-work
@@ -65,17 +72,23 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           SOURCE="$WORK_DIR/output/Manifest"
+          URL_SOURCE="$WORK_DIR/output/ResourceUrl"
           TARGET="client-resource-manifest"
 
           if [ ! -d "$SOURCE" ]; then
             echo "Manifest source not found: $SOURCE"
             exit 1
           fi
+          if [ ! -d "$URL_SOURCE" ]; then
+            echo "Resource url source not found: $URL_SOURCE"
+            exit 1
+          fi
 
           mkdir -p "$TARGET"
 
-          for region in CN EN JP KR TW; do
+          for region in $(jq -r '.REGIONS[]' "$GITHUB_WORKSPACE/config.json"); do
             src="$SOURCE/$region"
+            url_src="$URL_SOURCE/$region"
             dst="$TARGET/$region"
 
             if [ ! -f "$src/win_version.json" ]; then
@@ -85,6 +98,7 @@ jobs:
 
             mkdir -p "$dst"
             cp "$src"/* "$dst"/
+            cp "$url_src"/* "$dst"/
 
             game_ver=$(jq -r ".\"$region\".game_ver" "$src/win_version.json")
             patch_ver=$(jq -r ".\"$region\".patch_ver" "$src/win_version.json")

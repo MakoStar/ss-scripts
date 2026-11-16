@@ -3,7 +3,11 @@
   "PLATFORMS": ["win", "and", "ios"],
   "GLOBAL": {
     "BASE_CONFIG": "/api/launcher/base/config",
-    "GAME_CONFIG": "/api/launcher/game/config"
+    "GAME_CONFIG": "/api/launcher/game/config",
+    "RES_URL_TEMPLATE": "/res/{platform}/{version}/{ap}/{file}",
+    "RES_AP_NAME": "addtional_path.json",
+    "RES_AP_MD_NAME": "addtional_path.md",
+    "RES_AP_FILE_TEMPLATE": "{region}_res_{platform}_ap.json"
   },
   "CN": {
     "TAG": "StellaSora_CN",
