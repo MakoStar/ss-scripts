@@ -98,7 +98,7 @@ jobs:
             fi
 
             region_lower="${region,,}"
-            msg="chore($region_lower): $version"
+            msg="chore(launcher): salt $region_lower v$version"
             git commit -m "$msg"
             echo "[$region] committed: $msg"
           done
