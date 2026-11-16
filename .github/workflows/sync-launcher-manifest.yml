@@ -1,0 +1,102 @@
+name: Sync launcher resource manifest
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  WORK_DIR: /tmp/launcher-work
+  TARGET_REPO: MakoStar/ss-repo
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Generate launcher manifests
+        working-directory: sync/launcher/resource-manifest
+        env:
+          LAUNCHER_OUT_DIR: /tmp/launcher-work/output
+        run: node generate.js
+
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.TARGET_REPO }}
+          path: repo
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 1
+
+      - name: Sync manifests and commit per region
+        working-directory: repo
+        env:
+          WORK_DIR: /tmp/launcher-work
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          SOURCE="$WORK_DIR/output"
+          TARGET="launcher-resource-manifest"
+          VERSION_FILE="$SOURCE/version.json"
+
+          if [ ! -f "$VERSION_FILE" ]; then
+            echo "Version file not found: $VERSION_FILE"
+            exit 1
+          fi
+
+          mkdir -p "$TARGET"
+
+          git add "$TARGET/version.json" 2>/dev/null || true
+          cp "$VERSION_FILE" "$TARGET/version.json"
+          git add "$TARGET/version.json"
+          if ! git diff --cached --quiet -- "$TARGET/version.json"; then
+            git commit -m "update: launcher resource version.json"
+          fi
+
+          for region in $(jq -r '.REGIONS[]' "$GITHUB_WORKSPACE/config.json"); do
+            src="$SOURCE/$region"
+            dst="$TARGET/$region"
+
+            if [ ! -d "$src" ]; then
+              echo "[$region] source not found, skip"
+              continue
+            fi
+
+            mkdir -p "$dst"
+            cp "$src"/* "$dst"/
+
+            version=$(jq -r ".\"$region\"" "$VERSION_FILE")
+
+            git add "$dst"
+            if git diff --cached --quiet -- "$dst"; then
+              echo "[$region] no change, skip"
+              continue
+            fi
+
+            region_lower="${region,,}"
+            msg="chore(launcher): $region_lower v$version"
+            git commit -m "$msg"
+            echo "[$region] committed: $msg"
+          done
+
+          if [ -n "$(git log origin/main..HEAD --oneline)" ]; then
+            git push
+            echo "pushed to $TARGET_REPO"
+          else
+            echo "nothing to push"
+          fi

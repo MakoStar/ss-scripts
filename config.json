@@ -7,7 +7,12 @@
     "RES_URL_TEMPLATE": "/res/{platform}/{version}/{ap}/{file}",
     "RES_AP_NAME": "addtional_path.json",
     "RES_AP_MD_NAME": "addtional_path.md",
-    "RES_AP_FILE_TEMPLATE": "{region}_res_{platform}_ap.json"
+    "RES_AP_FILE_TEMPLATE": "{region}_res_{platform}_ap.json",
+    "LAUNCHER_API_PARAMS": "/json?version={ver}&file_path={path}",
+    "LAUNCHER_VERSION_FILE": "version.json",
+    "LAUNCHER_CONFIG_FILE": "config.json",
+    "LAUNCHER_RETRIEVE_FILE": "retrieve.json",
+    "LAUNCHER_MANIFEST_FILE": "manifest.json"
   },
   "CN": {
     "TAG": "StellaSora_CN",
