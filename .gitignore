@@ -19,3 +19,4 @@ sync/**/output/
 sync/**/tests/
 sync/**/node_modules/
 sync/**/manifest/
+sync/**/data_storage/

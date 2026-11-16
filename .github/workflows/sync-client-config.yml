@@ -1,0 +1,105 @@
+name: Sync client config
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  TARGET_REPO: MakoStar/ss-repo
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "coloredlogs>=15.0.1" \
+            "fake-useragent>=2.2.0" \
+            "requests>=2.34.2" \
+            "unitypy>=1.25.0"
+
+      - name: Extract client config
+        working-directory: sync/client/client-config-extractor
+        run: python ./main.py
+
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.TARGET_REPO }}
+          path: repo
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 1
+
+      - name: Sync config data per region
+        working-directory: repo
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          SOURCE="$GITHUB_WORKSPACE/sync/client/client-config-extractor/output"
+          TARGET="client-config-data"
+          VERSION_FILE="$SOURCE/version.json"
+
+          if [ ! -f "$VERSION_FILE" ]; then
+            echo "version file not found: $VERSION_FILE"
+            exit 1
+          fi
+
+          mkdir -p "$TARGET"
+
+          git add "$TARGET/version.json" 2>/dev/null || true
+          cp "$VERSION_FILE" "$TARGET/version.json"
+          git add "$TARGET/version.json"
+          if ! git diff --cached --quiet -- "$TARGET/version.json"; then
+            git commit -m "update: client config version.json"
+          fi
+
+          for region in $(jq -r 'keys[]' "$VERSION_FILE"); do
+            src="$SOURCE/$region"
+            dst="$TARGET/$region"
+
+            if [ ! -d "$src" ]; then
+              echo "[$region] source not found, skip"
+              continue
+            fi
+
+            mkdir -p "$dst"
+            cp "$src"/* "$dst"/
+
+            version=$(jq -r ".\"$region\"" "$VERSION_FILE")
+
+            git add "$dst"
+            if git diff --cached --quiet -- "$dst"; then
+              echo "[$region] no change, skip"
+              continue
+            fi
+
+            region_lower="${region,,}"
+            msg="chore(vendor): $region_lower v$version"
+            git commit -m "$msg"
+            echo "[$region] committed: $msg"
+          done
+
+          if [ -n "$(git log origin/main..HEAD --oneline)" ]; then
+            git push
+            echo "pushed to $TARGET_REPO"
+          else
+            echo "nothing to push"
+          fi
