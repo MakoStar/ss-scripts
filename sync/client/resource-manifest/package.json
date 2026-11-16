@@ -1,0 +1,14 @@
+{
+  "name": "ss-manifest-collector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "批量导出 StellaSora 各区域资源清单",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "fetch": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

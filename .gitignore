@@ -12,3 +12,9 @@ build/
 # python
 __pycache__/
 *.pyc
+
+# sync generated files
+sync/**/tool/
+sync/**/output/
+sync/**/tests/
+sync/**/node_modules/

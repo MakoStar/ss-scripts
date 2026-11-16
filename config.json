@@ -1,0 +1,78 @@
+{
+  "REGIONS": ["CN", "EN", "JP", "KR", "TW"],
+  "PLATFORMS": ["win", "and", "ios"],
+  "GLOBAL": {
+    "BASE_CONFIG": "/api/launcher/base/config",
+    "GAME_CONFIG": "/api/launcher/game/config"
+  },
+  "CN": {
+    "TAG": "StellaSora_CN",
+    "SALT": "872550AD59A235662C5B7D5F88CEBE4B",
+    "API_URL": "https://launcher-api.yostar.net",
+    "PKG_URL": "https://game-launcher-ss-cn.yostar.net",
+    "PKG_ROUTE": "/pubplat/game-launcher-cn/install_pkg/launcher",
+    "STATIC_URL": "https://nova-static.yostar.cn",
+    "STATIC_KEY": "Xf&FRcsYm48cJ2A@",
+    "SERVER_META_KEY": "Xf&FRcsYm48cJ2A@",
+    "REVIEW_SERVER_META_KEY": "2T%h&FN2Yg*%229p",
+    "SERVER_GARBLE_KEY": "QW*Wi7fKjLk!T82Qf2nEGZA%nSC!D9qV",
+    "REVIEW_SERVER_GARBLE_KEY": "Jue2kK8PFB3HjB3x@A8MFS2KbWAF^xUi",
+    "CLIENT_VERSION": "1.3.0"
+  },
+  "EN": {
+    "TAG": "StellaSora_EN",
+    "SALT": "DE7108E9B2842FD460F4777702727869",
+    "API_URL": "https://api-launcher-en.yo-star.com",
+    "PKG_URL": "https://launcher-pkg-ss-en.yo-star.com",
+    "PKG_ROUTE": "/install_pkg/game_launcher",
+    "STATIC_URL": "https://nova-static.stellasora.global",
+    "STATIC_KEY": "ma5Dn2FhC*Xhxy%c",
+    "SERVER_META_KEY": "ma5Dn2FhC*Xhxy%c",
+    "REVIEW_SERVER_META_KEY": "8RwNK^P*bcQd5W7b",
+    "SERVER_GARBLE_KEY": "xNdVF^XTa6T3HCUATMQ@sKMLzAw&%L!3",
+    "REVIEW_SERVER_GARBLE_KEY": "2dJdv@cr!5z$3xq63t$q%wriQMNS9%&#",
+    "CLIENT_VERSION": "1.6.0"
+  },
+  "JP": {
+    "TAG": "StellaSora_JP",
+    "SALT": "DE7108E9B2842FD460F4777702727869",
+    "API_URL": "https://api-launcher-jp.yo-star.com",
+    "PKG_URL": "https://launcher-pkg-ss-jp.yo-star.com",
+    "PKG_ROUTE": "/install_pkg/game_launcher",
+    "STATIC_URL": "https://nova-static.stellasora.jp",
+    "STATIC_KEY": "ZnUFA@S9%4KyoryM",
+    "SERVER_META_KEY": "ZnUFA@S9%4KyoryM",
+    "REVIEW_SERVER_META_KEY": "vreZA#$$dA2un%$a",
+    "SERVER_GARBLE_KEY": "yX5Gt64PVvVH6$qwBXaPJC*LZKoK5mYh",
+    "REVIEW_SERVER_GARBLE_KEY": "JpuPiooBJSJrai&Z#Shnk^qS2fS3kLPu",
+    "CLIENT_VERSION": "1.6.0"
+  },
+  "KR": {
+    "TAG": "StellaSora_KR",
+    "SALT": "DE7108E9B2842FD460F4777702727869",
+    "API_URL": "https://api-launcher-kr.yo-star.com",
+    "PKG_URL": "https://launcher-pkg-ss-kr.yo-star.com",
+    "PKG_ROUTE": "/install_pkg/game_launcher",
+    "STATIC_URL": "https://nova-static.stellasora.kr",
+    "STATIC_KEY": "U9cjHuwGDDx&$drn",
+    "SERVER_META_KEY": "U9cjHuwGDDx&$drn",
+    "REVIEW_SERVER_META_KEY": "vV5$yss6y2i8%JVb",
+    "SERVER_GARBLE_KEY": "25hdume9H#*6hHn@d9hSF7tekTwN#JYj",
+    "REVIEW_SERVER_GARBLE_KEY": "HjW&k*FT9xt$gZZo4HW7%YM%EnDEz*9G",
+    "CLIENT_VERSION": "1.6.0"
+  },
+  "TW": {
+    "TAG": "StellaSora_TW",
+    "SALT": "DE7108E9B2842FD460F4777702727869",
+    "API_URL": "https://api-launcher-tw.stargazer-games.com",
+    "PKG_URL": "https://launcher-pkg-ss-hk.stargazer-games.com",
+    "PKG_ROUTE": "/install_pkg/game_launcher",
+    "STATIC_URL": "https://nova-static.stargazer-games.com",
+    "STATIC_KEY": "owGYVDmfHrxi^4pm",
+    "SERVER_META_KEY": "owGYVDmfHrxi^4pm",
+    "REVIEW_SERVER_META_KEY": "^ayERq^Lq9RgAdYr",
+    "SERVER_GARBLE_KEY": "N&mfco452ZH5!nE3s&o5uxB57UGPENVo",
+    "REVIEW_SERVER_GARBLE_KEY": "a3SqRDozk9vJ3jUwo*gSDsjSDk&ze2Q3",
+    "CLIENT_VERSION": "1.8.2"
+  }
+}

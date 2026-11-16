@@ -1,0 +1,110 @@
+name: Sync client resource manifest
+
+on:
+  schedule:
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SSR_RELEASE: "v0.4.3"
+  SSR_DIR: /tmp/ssrf
+  WORK_DIR: /tmp/manifest-work
+  TARGET_REPO: MakoStar/ss-repo
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Download ss-resource-fetcher release
+        run: |
+          mkdir -p "$SSR_DIR"
+          URL="https://github.com/MakoStar/ss-resource-fetcher/releases/download/${SSR_RELEASE}/ResourceFetcher-${SSR_RELEASE}-linux-x64.tar.gz"
+          curl -sSL "$URL" -o "$SSR_DIR/rf.tar.gz"
+          tar -xzf "$SSR_DIR/rf.tar.gz" -C "$SSR_DIR"
+          chmod +x "$SSR_DIR/ResourceFetcher"
+          "$SSR_DIR/ResourceFetcher" --version
+
+      - name: Generate manifests
+        working-directory: sync/client/resource-manifest
+        env:
+          RESOURCE_FETCHER_EXE: /tmp/ssrf/ResourceFetcher
+          MANIFEST_WORK_DIR: /tmp/manifest-work
+        run: |
+          mkdir -p "$MANIFEST_WORK_DIR"
+          node index.js --concurrency 2
+
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.TARGET_REPO }}
+          path: repo
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 1
+
+      - name: Sync manifests and commit per region
+        working-directory: repo
+        env:
+          WORK_DIR: /tmp/manifest-work
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          SOURCE="$WORK_DIR/output/Manifest"
+          TARGET="client-resource-manifest"
+
+          if [ ! -d "$SOURCE" ]; then
+            echo "Manifest source not found: $SOURCE"
+            exit 1
+          fi
+
+          mkdir -p "$TARGET"
+
+          for region in CN EN JP KR TW; do
+            src="$SOURCE/$region"
+            dst="$TARGET/$region"
+
+            if [ ! -f "$src/win_version.json" ]; then
+              echo "Missing version file: $src/win_version.json"
+              exit 1
+            fi
+
+            mkdir -p "$dst"
+            cp "$src"/* "$dst"/
+
+            game_ver=$(jq -r ".\"$region\".game_ver" "$src/win_version.json")
+            patch_ver=$(jq -r ".\"$region\".patch_ver" "$src/win_version.json")
+            patch_num=$(jq -r ".\"$region\".patch_num" "$src/win_version.json")
+
+            git add "$dst"
+            if git diff --cached --quiet -- "$dst"; then
+              echo "[$region] no change, skip"
+              continue
+            fi
+
+            region_lower="${region,,}"
+            msg="chore(manifest): client resource $region_lower $game_ver (v${patch_ver}-p${patch_num})"
+            git commit -m "$msg"
+            echo "[$region] committed: $msg"
+          done
+
+          if [ -n "$(git log origin/main..HEAD --oneline)" ]; then
+            git push
+            echo "pushed to $TARGET_REPO"
+          else
+            echo "nothing to push"
+          fi
