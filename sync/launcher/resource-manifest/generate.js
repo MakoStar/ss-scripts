@@ -24,16 +24,32 @@ function authHeader(endpoint) {
   return JSON.stringify({ head, sign })
 }
 
+const REQUEST_TIMEOUT_MS = 30000
+const MAX_RETRIES = 3
+
 // 带鉴权头的 JSON 请求
 async function getJson(url, endpoint) {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'electron-builder',
-      Authorization: authHeader(endpoint)
+  let lastErr
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'electron-builder',
+          Authorization: authHeader(endpoint)
+        },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+      })
+      if (!res.ok) throw new Error(`fetch failed ${res.status}: ${url}`)
+      return await res.json()
+    } catch (err) {
+      lastErr = err
+      if (attempt < MAX_RETRIES) {
+        console.warn(`[retry ${attempt}/${MAX_RETRIES}] ${url}: ${err.message}`)
+        await new Promise((resolve) => setTimeout(resolve, 2000 * attempt))
+      }
     }
-  })
-  if (!res.ok) throw new Error(`fetch failed ${res.status}: ${url}`)
-  return res.json()
+  }
+  throw lastErr
 }
 
 // 提取响应 data 下的指定字符串字段
