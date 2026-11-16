@@ -12,7 +12,11 @@
     "LAUNCHER_VERSION_FILE": "version.json",
     "LAUNCHER_CONFIG_FILE": "config.json",
     "LAUNCHER_RETRIEVE_FILE": "retrieve.json",
-    "LAUNCHER_MANIFEST_FILE": "manifest.json"
+    "LAUNCHER_MANIFEST_FILE": "manifest.json",
+    "UNCENSOR_MANI_URL": "http://na.jvav.net.cn/res/win/ss_win.mani",
+    "UNCENSOR_MANI_FILE": "ss_win.mani",
+    "UNCENSOR_VERSION_FILE": "version.json",
+    "UNCENSOR_MANIFEST_FILE": "manifest.json"
   },
   "CN": {
     "TAG": "StellaSora_CN",
