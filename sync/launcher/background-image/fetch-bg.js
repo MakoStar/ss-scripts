@@ -8,7 +8,7 @@ import {
   BASE_CONFIG,
   GAME_CONFIG,
   GAME_ID,
-  CLIENT_VERSION,
+  LAUNCHER_VERSION,
   SALT,
   REGION,
   WORK_DIR,
@@ -22,7 +22,7 @@ const DEFAULT_INTRO = `# StellaSora_CN 启动器背景图记录
 
 // 构造启动器接口签名鉴权头
 const getAuthHeader = () => {
-  const head = { game_tag: GAME_ID, time: Math.floor(Date.now() / 1000), version: CLIENT_VERSION };
+  const head = { game_tag: GAME_ID, time: Math.floor(Date.now() / 1000), version: LAUNCHER_VERSION };
   const sign = crypto.createHash("md5").update(JSON.stringify(head) + SALT).digest("hex");
   return JSON.stringify({ head, sign });
 };

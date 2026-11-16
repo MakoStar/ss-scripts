@@ -14,7 +14,7 @@ const BASE_URL = regionCfg.API_URL;
 const BASE_CONFIG = globalCfg.BASE_CONFIG;
 const GAME_CONFIG = globalCfg.GAME_CONFIG;
 const GAME_ID = regionCfg.TAG;
-const CLIENT_VERSION = regionCfg.CLIENT_VERSION;
+const LAUNCHER_VERSION = regionCfg.LAUNCHER_VERSION;
 const SALT = regionCfg.SALT;
 
 const WORK_DIR = process.env.BG_WORK_DIR || path.join(__dirname, "output");
@@ -26,7 +26,7 @@ export {
   BASE_CONFIG,
   GAME_CONFIG,
   GAME_ID,
-  CLIENT_VERSION,
+  LAUNCHER_VERSION,
   SALT,
   REGION,
   WORK_DIR,

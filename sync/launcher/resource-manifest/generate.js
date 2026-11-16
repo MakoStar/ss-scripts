@@ -18,7 +18,7 @@ function authHeader(endpoint) {
   const head = {
     game_tag: endpoint.TAG,
     time: Math.floor(Date.now() / 1000),
-    version: endpoint.CLIENT_VERSION
+    version: endpoint.LAUNCHER_VERSION
   }
   const sign = crypto.createHash('md5').update(JSON.stringify(head) + endpoint.SALT).digest('hex')
   return JSON.stringify({ head, sign })
