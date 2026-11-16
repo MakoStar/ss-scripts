@@ -1,0 +1,10 @@
+{
+  "name": "background-image",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Sync launcher background image and record",
+  "scripts": {
+    "fetch": "node fetch-bg.js"
+  }
+}

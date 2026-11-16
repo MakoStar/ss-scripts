@@ -1,0 +1,104 @@
+name: Sync launcher background
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SSR_RELEASE: "v0.4.3"
+  SSR_DIR: /tmp/ssrf
+  BG_WORK_DIR: /tmp/bg-work
+  TARGET_REPO: MakoStar/ss-repo
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Download ss-resource-fetcher release
+        run: |
+          mkdir -p "$SSR_DIR"
+          URL="https://github.com/MakoStar/ss-resource-fetcher/releases/download/${SSR_RELEASE}/ResourceFetcher-${SSR_RELEASE}-linux-x64.tar.gz"
+          curl -sSL "$URL" -o "$SSR_DIR/rf.tar.gz"
+          tar -xzf "$SSR_DIR/rf.tar.gz" -C "$SSR_DIR"
+          chmod +x "$SSR_DIR/ResourceFetcher"
+          "$SSR_DIR/ResourceFetcher" --version
+
+      - name: Fetch client manifest ss_win.mani
+        working-directory: /tmp/ssrf
+        run: |
+          "$SSR_DIR/ResourceFetcher" client -r \
+            -s GLOBAL.DEFAULT_REGION=CN \
+            -s GLOBAL.DEFAULT_PLATFORM=win \
+            -s TASK.CLIENT.REGISTRY.FETCH_FILES='[ss_win.mani]' \
+            -s 'TASK.CLIENT.REGISTRY.RES_PATTERNS=[^ss_win\.mani$]'
+
+      - name: Fetch background and download image
+        working-directory: sync/launcher/background-image
+        env:
+          MANI_PATH: /tmp/ssrf/output/Metadata/CN/win/ss_win.mani
+          BG_WORK_DIR: /tmp/bg-work
+        run: |
+          mkdir -p "$BG_WORK_DIR"
+          node fetch-bg.js
+
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.TARGET_REPO }}
+          path: repo
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 1
+
+      - name: Sync background and commit
+        working-directory: repo
+        env:
+          BG_WORK_DIR: /tmp/bg-work
+        run: |
+          set -euo pipefail
+
+          STATE="$BG_WORK_DIR/state.json"
+          TAG=$(jq -r '.tag' "$STATE")
+          IMAGE=$(jq -r '.image' "$STATE")
+          SRC_MD="$GITHUB_WORKSPACE/sync/launcher/background-image/background.md"
+          SRC_IMAGE="$BG_WORK_DIR/image/$IMAGE"
+
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "No version tag in state"
+            exit 1
+          fi
+          if [ ! -f "$SRC_IMAGE" ]; then
+            echo "Image not found: $SRC_IMAGE"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          TARGET="launcher/background"
+          mkdir -p "$TARGET/image"
+          cp "$SRC_MD" "$TARGET/background.md"
+          cp "$SRC_IMAGE" "$TARGET/image/$IMAGE"
+
+          git add "$TARGET"
+          if git diff --cached --quiet -- "$TARGET"; then
+            echo "No change, skip commit"
+            exit 0
+          fi
+
+          git commit -m "chore(launcher): background $TAG"
+          git push
+          echo "Pushed background $TAG to $TARGET_REPO"
