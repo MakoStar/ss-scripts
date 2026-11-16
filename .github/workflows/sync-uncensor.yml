@@ -1,0 +1,101 @@
+name: Sync uncensor manifest
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  WORK_DIR: /tmp/uncensor-work
+  TARGET_REPO: MakoStar/ss-repo
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Generate uncensor manifest
+        working-directory: sync/uncensor
+        env:
+          UNCENSOR_OUT_DIR: /tmp/uncensor-work
+        run: node generate.js
+
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ env.TARGET_REPO }}
+          path: repo
+          token: ${{ secrets.GH_TOKEN }}
+          fetch-depth: 1
+
+      - name: Sync uncensor data
+        id: sync
+        working-directory: repo
+        env:
+          WORK_DIR: /tmp/uncensor-work
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          SOURCE="$WORK_DIR"
+          TARGET="uncensor-resource-manifest"
+
+          for file in ss_win.mani version.json manifest.json; do
+            if [ ! -f "$SOURCE/$file" ]; then
+              echo "missing file: $SOURCE/$file"
+              exit 1
+            fi
+          done
+
+          mkdir -p "$TARGET"
+          cp "$SOURCE"/ss_win.mani "$SOURCE"/version.json "$SOURCE"/manifest.json "$TARGET"/
+
+          git add "$TARGET"
+          if git diff --cached --quiet -- "$TARGET"; then
+            echo "no change, skip"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          game_ver=$(jq -r '.GAME_VER' "$SOURCE/version.json")
+          res_ver=$(jq -r '.RES_VER' "$SOURCE/version.json")
+          msg="chore(uncensor): $game_ver $res_ver"
+          git commit -m "$msg"
+          echo "committed: $msg"
+
+          git push
+          echo "pushed to $TARGET_REPO"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger email notification
+        if: steps.sync.outputs.changed == 'true'
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          repository: MakoStar/email-notifier
+          event-type: send-email
+          client-payload: |
+            {
+              "source_repo": "${{ github.repository }}",
+              "source_ref":  "${{ github.ref_name }}",
+              "actor":       "${{ github.actor }}",
+              "subject":     "[ss-manifest] uncensor manifest updated",
+              "body":        "反和谐清单更新!",
+              "commit_sha":  "${{ steps.sync.outputs.commit_sha }}",
+              "run_url":     "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
