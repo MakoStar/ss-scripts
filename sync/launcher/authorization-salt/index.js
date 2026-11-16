@@ -18,13 +18,28 @@ const {
 try {
   fs.chmodSync(path7za, 0o755)
 } catch (err) {
-  console.warn('cannot set 7za permission, continue anyway')
+  console.warn('⚠️ Cannot set 7za permission, continue anyway')
 }
 
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 2000
+const API_TIMEOUT_MS = 6e4
+const PROGRESS_STEP_MS = 2000
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function logRegionHeader(region) {
+  const title = ` REGION ${region} `
+  const side = Math.max(0, Math.floor((64 - title.length) / 2))
+  const line = '='.repeat(side)
+  console.log(`\n${line}${title}${line}`)
+}
 
 async function withRetry(label, fn) {
   let lastErr
@@ -35,7 +50,7 @@ async function withRetry(label, fn) {
       lastErr = err
       if (attempt < MAX_RETRIES) {
         const delay = RETRY_BASE_MS * attempt
-        console.warn(`[retry ${attempt}/${MAX_RETRIES}] ${label} failed: ${err.message} (wait ${delay}ms)`)
+        console.warn(`⚠️ [retry ${attempt}/${MAX_RETRIES}] ${label} failed: ${err.message} (wait ${delay}ms)`)
         await sleep(delay)
       }
     }
@@ -58,7 +73,7 @@ const createRegionAxiosClient = (region) => {
   if (!config) throw new Error(`unknown region: ${region}`)
 
   const client = axios.create({
-    timeout: 3e4,
+    timeout: API_TIMEOUT_MS,
     baseURL: config.API_URL,
     withCredentials: true,
     headers: { 'Content-Type': 'application/json;charset=UTF-8' }
@@ -90,22 +105,52 @@ const getRegionAxiosClient = (region) => {
 const downloader = async (targetUrl, destPath) => {
   await fse.ensureDir(path.dirname(destPath))
   const tmpPath = `${destPath}.tmp`
+
+  let resumeFrom = 0
+  if (await fse.pathExists(tmpPath)) {
+    resumeFrom = (await fse.stat(tmpPath)).size
+  }
+
+  const headers = resumeFrom > 0 ? { Range: `bytes=${resumeFrom}-` } : {}
+  const response = await axios.get(targetUrl, {
+    responseType: 'stream',
+    timeout: API_TIMEOUT_MS,
+    headers
+  })
+
+  const total = Number(response.headers['content-length'] || 0) + resumeFrom
+  const isRange = response.status === 206
+  if (resumeFrom > 0 && !isRange) {
+    resumeFrom = 0
+  }
+
+  const writer = fs.createWriteStream(tmpPath, { flags: isRange && resumeFrom > 0 ? 'a' : 'w' })
+  let downloaded = resumeFrom
+  let lastPrint = Date.now()
+  let lastBytes = resumeFrom
+
   try {
-    const response = await axios.get(targetUrl, {
-      responseType: 'stream',
-      timeout: 3e4
-    })
-    const writer = fs.createWriteStream(tmpPath)
     await new Promise((resolve, reject) => {
-      response.data.pipe(writer)
+      response.data.on('data', (chunk) => {
+        downloaded += chunk.length
+        const now = Date.now()
+        if (now - lastPrint >= PROGRESS_STEP_MS) {
+          const speed = (downloaded - lastBytes) / ((now - lastPrint) / 1000)
+          const pct = total ? ((downloaded / total) * 100).toFixed(1) : '?'
+          console.log(`  ⬇️ ${pct}% (${formatBytes(downloaded)}/${formatBytes(total)}) ${formatBytes(speed)}/s`)
+          lastPrint = now
+          lastBytes = downloaded
+        }
+      })
       response.data.on('error', reject)
       writer.on('error', reject)
       writer.on('finish', resolve)
+      response.data.pipe(writer)
     })
     await fse.move(tmpPath, destPath, { overwrite: true })
-    console.log(`download ok: ${destPath}`)
+    console.log(`✅ download ok: ${destPath} (${formatBytes(downloaded)})`)
   } catch (err) {
-    await fse.remove(tmpPath).catch(() => {})
+    console.error(`❌ download failed: ${err.message}`)
     throw err
   }
 }
@@ -132,7 +177,7 @@ const findAndExtract7z = async (sourceDir, targetDir) => {
     }))
   )
   const target = stats.sort((a, b) => b.size - a.size)[0]
-  console.log(`target 7z: ${target.name} (${(target.size / 1024 / 1024).toFixed(1)} MB)`)
+  console.log(`📦 target 7z: ${target.name} (${(target.size / 1024 / 1024).toFixed(1)} MB)`)
   return run7z(['x', '-t7z', path.join(sourceDir, target.name), `-o${targetDir}`, '-aoa', '-y'])
 }
 
@@ -154,12 +199,12 @@ const extractSaltFromFile = (filePath) => {
 
 async function processRegion(region) {
   const { TAG, PKG_URL, PKG_ROUTE } = endpointOf(region)
-  console.log(`\nprocessing region: ${region}`)
+  logRegionHeader(region)
 
   const pkgBaseUrl = buildUrl(PKG_URL, PKG_ROUTE, TAG)
   const retrieveUrl = buildUrl(pkgBaseUrl, LATEST_YML)
 
-  console.log(`fetching: ${retrieveUrl}`)
+  console.log(`⬇️ fetching: ${retrieveUrl}`)
   const ymlContent = await withRetry(`fetch ${LATEST_YML} for ${region}`, () =>
     getRegionAxiosClient(region).get(retrieveUrl, { _isDownload: true })
   )
@@ -175,7 +220,7 @@ async function processRegion(region) {
   const storageDir = path.join(DATA_DIR, region)
   const launcherDest = path.join(storageDir, path.basename(targetLauncherPath))
 
-  console.log(`downloading launcher: ${launcherUrl}`)
+  console.log(`⬇️ downloading launcher: ${launcherUrl}`)
   await withRetry(`download launcher for ${region}`, () =>
     downloader(launcherUrl, launcherDest)
   )
@@ -185,16 +230,17 @@ async function processRegion(region) {
   await fse.ensureDir(tempDir)
   await fse.ensureDir(finalDir)
 
-  console.log('extracting installer')
+  console.log('📂 extracting installer')
   await withRetry(`extract installer for ${region}`, () =>
     extractWith7z(launcherDest, tempDir)
   )
 
-  console.log('extracting game assets')
+  console.log('📂 extracting game assets')
   await withRetry(`extract assets for ${region}`, () =>
     findAndExtract7z(tempDir, finalDir)
   )
 
+  console.log('🧹 cleaning temp files')
   await cleanTemp(tempDir)
 
   const asarPath = path.join(finalDir, 'resources', 'app.asar')
@@ -203,7 +249,7 @@ async function processRegion(region) {
     throw new Error(`app.asar not found at: ${asarPath}`)
   }
 
-  console.log('extracting app.asar')
+  console.log('📦 extracting app.asar')
   await withRetry(`extract asar for ${region}`, () =>
     asar.extractAll(asarPath, asarOutDir)
   )
@@ -211,7 +257,7 @@ async function processRegion(region) {
   const saltFilePath = path.join(asarOutDir, 'out', 'main', 'index.js')
   const salt = extractSaltFromFile(saltFilePath)
 
-  console.log(`salt ${region}: ${salt}`)
+  console.log(`🔑 salt ${region}: ${salt}`)
   return { salt, ver: launcherVersion }
 }
 
@@ -221,13 +267,13 @@ async function processRegion(region) {
     saltData[region] = await processRegion(region)
   }
 
-  console.log('\nall regions processed')
+  console.log('\n✅ all regions processed successfully')
   await fse.outputFile(
     path.join(OUT_DIR, SALT_FILE),
     JSON.stringify(saltData, null, 4),
     { encoding: 'utf-8' }
   )
 })().catch((err) => {
-  console.error('fatal error:', err)
+  console.error('💥 fatal error:', err)
   process.exit(1)
 })
